@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeamTask | Collaborative Todo Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        .todo-item:hover .todo-actions {
+            opacity: 1;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-enter {
+            animation: modalEnter 0.25s ease-out;
+        }
+        @keyframes modalEnter {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .priority-high { border-left-color: #ef4444; }
+        .priority-medium { border-left-color: #f59e0b; }
+        .priority-low { border-left-color: #10b981; }
+        .checkbox-custom:checked {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+        }
+        .checkbox-custom:checked:after {
+            content: '✓';
+            color: white;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+        .user-harish { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .user-solai { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .user-anwar { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .user-selected {
+            outline: 3px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        input[type="date"], input[type="time"] {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .project-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toast {
+            min-width: 300px;
+            padding: 16px;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-left: 4px solid;
+            display: flex;
+            align-items: flex-start;
+            animation: slideIn 0.3s ease-out forwards;
+            transition: opacity 0.3s ease-out;
+        }
+        
+        .toast.success { border-left-color: #10b981; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast.info { border-left-color: #3b82f6; }
+        
+        .toast-content {
+            margin-left: 12px;
+            flex-grow: 1;
+        }
+        
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+            color: #1f2937;
+        }
+        
+        .toast-message {
+            font-size: 0.875rem;
+            color: #4b5563;
+        }
+        
+        .toast.hiding {
+            opacity: 0;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="mb-10">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">TeamTask</h1>
+                    <p class="text-gray-600 mt-2">Collaborative task management for teams</p>
+                </div>
+                
+                <!-- User Selection Dropdown -->
+                <div class="mt-4 md:mt-0">
+                    <div class="relative inline-block text-left">
+                        <div>
+                            <button type="button" id="user-dropdown-button" class="inline-flex justify-between items-center w-64 px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                <div class="flex items-center">
+                                    <div id="current-user-avatar" class="user-avatar user-harish mr-3">H</div>
+                                    <div>
+                                        <div class="text-left">
+                                            <span id="current-user-name" class="font-semibold">Harish</span>
+                                            <div class="text-xs text-gray-500">Active user</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-down ml-2 text-gray-400"></i>
+                            </button>
+                        </div>
+                        
+                        <div id="user-dropdown-menu" class="hidden origin-top-right absolute right-0 mt-2 w-64 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                            <div class="py-2 px-3" role="menu" aria-orientation="vertical">
+                                <div class="py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Team Member</div>
+                                
+                                <button class="user-option w-full flex items-center px-3 py-3 rounded-lg hover:bg-gray-100 mb-1 transition duration-150" data-user="harish">
+                                    <div class="user-avatar user-harish mr-3">H</div>
+                                    <div class="text-left">
+                                        <div class="font-medium">Harish</div>
+                                        <div class="text-xs text-gray-500">5 pending tasks</div>
+                                    </div>
+                                    <i class="fas fa-check ml-auto text-blue-600 hidden"></i>
+                                </button>
+                                
+                                <button class="user-option w-full flex items-center px-3 py-3 rounded-lg hover:bg-gray-100 mb-1 transition duration-150" data-user="solai">
+                                    <div class="user-avatar user-solai mr-3">S</div>
+                                    <div class="text-left">
+                                        <div class="font-medium">Solai</div>
+                                        <div class="text-xs text-gray-500">3 pending tasks</div>
+                                    </div>
+                                    <i class="fas fa-check ml-auto text-blue-600 hidden"></i>
+                                </button>
+                                
+                                <button class="user-option w-full flex items-center px-3 py-3 rounded-lg hover:bg-gray-100 transition duration-150" data-user="anwar">
+                                    <div class="user-avatar user-anwar mr-3">A</div>
+                                    <div class="text-left">
+                                        <div class="font-medium">Anwar</div>
+                                        <div class="text-xs text-gray-500">7 pending tasks</div>
+                                    </div>
+                                    <i class="fas fa-check ml-auto text-blue-600 hidden"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-2">Team Productivity Dashboard</h2>
+                        <p class="text-blue-100 opacity-90" id="user-task-stats">Harish has <span class="font-bold">5</span> pending tasks and <span class="font-bold">3</span> completed tasks</p>
+                    </div>
+                    <div class="mt-4 md:mt-0">
+                        <button id="open-modal-btn" class="bg-white text-blue-700 hover:bg-blue-50 font-semibold py-3 px-5 rounded-xl flex items-center transition duration-200 shadow-md hover:shadow-lg">
+                            <i class="fas fa-plus mr-2"></i> Add New Task
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Left Column - Stats & Projects -->
+            <div class="lg:w-2/5">
+                <!-- User Stats Card -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">User Statistics</h3>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium text-gray-700">Task Completion</span>
+                                <span class="text-sm font-bold text-blue-600" id="completion-percent">37%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-blue-600 h-2.5 rounded-full" id="completion-bar" style="width: 37%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-xl">
+                                <div class="text-2xl font-bold text-blue-700" id="total-tasks">8</div>
+                                <div class="text-sm text-gray-600">Total Tasks</div>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded-xl">
+                                <div class="text-2xl font-bold text-green-700" id="completed-tasks">3</div>
+                                <div class="text-sm text-gray-600">Completed</div>
+                            </div>
+                            <div class="bg-purple-50 p-4 rounded-xl">
+                                <div class="text-2xl font-bold text-purple-700" id="active-projects">4</div>
+                                <div class="text-sm text-gray-600">Projects</div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-2">
+                            <div class="text-sm text-gray-600 mb-2">Tasks by Priority</div>
+                            <div class="flex space-x-2">
+                                <div class="flex-1">
+                                    <div class="h-2 bg-red-500 rounded-full mb-1" id="high-priority-bar"></div>
+                                    <div class="text-xs text-gray-600">High: <span id="high-count">2</span></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="h-2 bg-yellow-500 rounded-full mb-1" id="medium-priority-bar"></div>
+                                    <div class="text-xs text-gray-600">Medium: <span id="medium-count">4</span></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="h-2 bg-green-500 rounded-full mb-1" id="low-priority-bar"></div>
+                                    <div class="text-xs text-gray-600">Low: <span id="low-count">2</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Projects Summary Card -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-semibold text-gray-800">Active Projects</h3>
+                        <span class="text-sm text-gray-500" id="project-count">4 projects</span>
+                    </div>
+                    
+                    <div class="space-y-4" id="projects-list">
+                        <!-- Projects will be dynamically added here -->
+                    </div>
+                    
+                    <div class="mt-6 pt-6 border-t border-gray-100">
+                        <button id="manage-projects-btn" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-3 px-4 rounded-xl transition duration-200 border border-gray-200">
+                            <i class="fas fa-plus mr-2"></i> Add New Project
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column - Task List -->
+            <div class="lg:w-3/5">
+                <!-- Task Filter & Controls -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-2">Tasks</h3>
+                            <p class="text-gray-600 text-sm" id="active-user-display">Assigned to <span class="font-semibold">Harish</span></p>
+                        </div>
+                        
+                        <div class="flex flex-wrap gap-3 mt-4 md:mt-0">
+                            <div class="relative">
+                                <select id="filter-priority" class="appearance-none bg-gray-50 border border-gray-300 text-gray-700 py-2 pl-4 pr-10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm">
+                                    <option value="all">All Priorities</option>
+                                    <option value="high">High Priority</option>
+                                    <option value="medium">Medium Priority</option>
+                                    <option value="low">Low Priority</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="relative">
+                                <select id="filter-project" class="appearance-none bg-gray-50 border border-gray-300 text-gray-700 py-2 pl-4 pr-10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm">
+                                    <option value="all">All Projects</option>
+                                    <!-- Projects will be dynamically added here -->
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </div>
+                            </div>
+                            
+                            <button id="show-completed" class="bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-xl transition duration-200 text-sm font-medium">
+                                <i class="fas fa-check-circle mr-2"></i> Show Completed
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Task List Container -->
+                    <div id="tasks-container" class="space-y-4">
+                        <!-- Tasks will be dynamically added here -->
+                    </div>
+                    
+                    <!-- Empty State (hidden when tasks exist) -->
+                    <div id="empty-state" class="text-center py-12 hidden">
+                        <div class="text-gray-400 text-5xl mb-6">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <h4 class="text-xl font-medium text-gray-700 mb-2">No tasks yet</h4>
+                        <p class="text-gray-500 max-w-sm mx-auto">Add your first task using the "Add New Task" button to get started.</p>
+                        <button id="empty-state-add-btn" class="mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-5 rounded-xl transition duration-200 shadow-md">
+                            <i class="fas fa-plus mr-2"></i> Create Your First Task
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Team Insights -->
+                <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl shadow-lg p-6 text-white">
+                    <h3 class="text-xl font-semibold mb-4">Team Insights</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-400 mr-3 mt-1"></i>
+                            <span>Assign tasks to team members based on their expertise</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-400 mr-3 mt-1"></i>
+                            <span>Use projects to organize related tasks together</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-green-400 mr-3 mt-1"></i>
+                            <span>Set clear deadlines to ensure timely completion</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="mt-12 pt-8 border-t border-gray-200 text-center text-gray-600 text-sm">
+            <p>Drefresh &copy; <span id="current-year"></span> - Task Management System</p>
+            <p class="mt-1">Made with <i class="fas fa-heart text-red-500"></i> by Harish Prabhu for productive teams</p>
+        </footer>
+    </div>
+    
+    <!-- Task Creation Modal -->
+    <div id="task-modal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Modal Overlay -->
+            <div class="fixed inset-0 transition-opacity modal-overlay" id="modal-overlay"></div>
+            
+            <!-- Modal Content -->
+            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full modal-enter">
+                <div class="bg-white px-6 pt-6 pb-4">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-bold text-gray-900">Create New Task</h3>
+                        <button id="close-modal" class="text-gray-400 hover:text-gray-500 p-1 rounded-full hover:bg-gray-100">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Task Title *</label>
+                            <input type="text" id="modal-task-title" placeholder="What needs to be done?" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200">
+                            <p class="text-red-500 text-sm mt-1 hidden" id="title-error">Title is required</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                            <textarea id="modal-task-description" rows="3" placeholder="Add details about this task..." class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200 resize-none"></textarea>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Assign To</label>
+                                <div class="relative">
+                                    <select id="modal-assign-to" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200 appearance-none bg-white">
+                                        <option value="harish">Harish</option>
+                                        <option value="solai">Solai</option>
+                                        <option value="anwar">Anwar</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                                <div class="relative">
+                                    <select id="modal-priority" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200 appearance-none bg-white">
+                                        <option value="low">Low Priority</option>
+                                        <option value="medium" selected>Medium Priority</option>
+                                        <option value="high">High Priority</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Project</label>
+                            <div class="flex">
+                                <div class="relative flex-1">
+                                    <input type="text" id="modal-project-input" list="project-suggestions" placeholder="Enter project name or select existing" class="w-full px-4 py-3 border border-gray-300 rounded-l-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200">
+                                    <datalist id="project-suggestions">
+                                        <!-- Project suggestions will be added dynamically -->
+                                    </datalist>
+                                </div>
+                                <button id="create-project-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 rounded-r-xl border border-l-0 border-gray-300">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-2" id="existing-projects">
+                                <!-- Existing project tags will be added here -->
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                                <input type="date" id="modal-due-date" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Time (Optional)</label>
+                                <input type="time" id="modal-due-time" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-6 py-5 flex flex-col sm:flex-row-reverse sm:px-6">
+                    <button id="modal-add-task" type="button" class="w-full sm:ml-3 sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-8 rounded-xl transition duration-200 shadow-md">
+                        <i class="fas fa-plus mr-2"></i> Add Task
+                    </button>
+                    <button id="modal-cancel" type="button" class="mt-3 w-full sm:mt-0 sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-8 rounded-xl transition duration-200">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="toast-container"></div>
+    
+    <script>
+        // Initial data
+        const users = {
+            harish: { name: "Harish", color: "user-harish", initial: "H" },
+            solai: { name: "Solai", color: "user-solai", initial: "S" },
+            anwar: { name: "Anwar", color: "user-anwar", initial: "A" }
+        };
+
+        // Initial todo data - organized by user
+        let todos = {};
+
+        // Fetch todos from server
+        async function fetchTodos() {
+            try {
+                const response = await fetch('/api/todos');
+                if (!response.ok) throw new Error('Failed to fetch todos');
+                
+                const allTodos = await response.json();
+                
+                // Group by user
+                todos = {};
+                allTodos.forEach(todo => {
+                    // unexpected date string parsing fix
+                    if (todo.dueDate) todo.dueDate = new Date(todo.dueDate);
+                    if (todo.createdAt) todo.createdAt = new Date(todo.createdAt);
+                    
+                    if (!todos[todo.assignedTo]) {
+                        todos[todo.assignedTo] = [];
+                    }
+                    todos[todo.assignedTo].push(todo);
+                });
+                
+                // Also update projects list based on fetched data
+                projects = new Set();
+                Object.values(todos).forEach(userTasks => {
+                    userTasks.forEach(task => {
+                        if (task.project) {
+                            projects.add(task.project);
+                        }
+                    });
+                });
+                projects = Array.from(projects);
+                
+                updateStats();
+                renderTodos();
+                renderProjectsList();
+                updateProjectFilter();
+                updateProjectSuggestions();
+                renderExistingProjectTags();
+                updateUserTaskStats();
+                
+            } catch (error) {
+                console.error('Error loading todos:', error);
+                alert('Failed to load todos from server. Please ensure the backend is running.');
+            }
+        }
+
+        // Extract all unique projects from todos
+        let projects = new Set();
+        Object.values(todos).forEach(userTasks => {
+            userTasks.forEach(task => {
+                if (task.project) {
+                    projects.add(task.project);
+                }
+            });
+        });
+        projects = Array.from(projects);
+
+        // DOM elements
+        const tasksContainer = document.getElementById('tasks-container');
+        const emptyState = document.getElementById('empty-state');
+        const openModalBtn = document.getElementById('open-modal-btn');
+        const taskModal = document.getElementById('task-modal');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const closeModalBtn = document.getElementById('close-modal');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+        const modalAddTaskBtn = document.getElementById('modal-add-task');
+        const modalTaskTitle = document.getElementById('modal-task-title');
+        const modalTaskDescription = document.getElementById('modal-task-description');
+        const modalAssignTo = document.getElementById('modal-assign-to');
+        const modalPriority = document.getElementById('modal-priority');
+        const modalProjectInput = document.getElementById('modal-project-input');
+        const modalDueDate = document.getElementById('modal-due-date');
+        const modalDueTime = document.getElementById('modal-due-time');
+        const titleError = document.getElementById('title-error');
+        const createProjectBtn = document.getElementById('create-project-btn');
+        const existingProjectsDiv = document.getElementById('existing-projects');
+        const projectSuggestions = document.getElementById('project-suggestions');
+        const userDropdownButton = document.getElementById('user-dropdown-button');
+        const userDropdownMenu = document.getElementById('user-dropdown-menu');
+        const currentUserName = document.getElementById('current-user-name');
+        const currentUserAvatar = document.getElementById('current-user-avatar');
+        const userTaskStats = document.getElementById('user-task-stats');
+        const activeUserDisplay = document.getElementById('active-user-display');
+        const emptyStateAddBtn = document.getElementById('empty-state-add-btn');
+        const filterPriority = document.getElementById('filter-priority');
+        const filterProject = document.getElementById('filter-project');
+        const showCompletedBtn = document.getElementById('show-completed');
+        const projectsList = document.getElementById('projects-list');
+        const projectCount = document.getElementById('project-count');
+        const manageProjectsBtn = document.getElementById('manage-projects-btn');
+        
+        // State variables
+        let currentUser = 'harish';
+        let showCompleted = false;
+        let currentPriorityFilter = 'all';
+        let currentProjectFilter = 'all';
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set current year
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+
+            // Set default date to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const formattedDate = tomorrow.toISOString().split('T')[0];
+            modalDueDate.value = formattedDate;
+            
+            initializeEventListeners();
+            switchUser(currentUser);
+            fetchTodos();
+        });
+        
+        // Set up event listeners
+        function initializeEventListeners() {
+            // Modal open/close
+            openModalBtn.addEventListener('click', openModal);
+            emptyStateAddBtn.addEventListener('click', openModal);
+            
+            modalOverlay.addEventListener('click', closeModal);
+            closeModalBtn.addEventListener('click', closeModal);
+            modalCancelBtn.addEventListener('click', closeModal);
+            
+            // Modal add task button
+            modalAddTaskBtn.addEventListener('click', addTaskFromModal);
+            
+            // Enter key in modal title
+            modalTaskTitle.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addTaskFromModal();
+            });
+            
+            // Create project button
+            createProjectBtn.addEventListener('click', function() {
+                const projectName = modalProjectInput.value.trim();
+                if (projectName && !projects.includes(projectName)) {
+                    projects.push(projectName);
+                    updateProjectFilter();
+                    updateProjectSuggestions();
+                    renderExistingProjectTags();
+                    renderProjectsList();
+                }
+            });
+            
+            // User dropdown
+            userDropdownButton.addEventListener('click', toggleUserDropdown);
+            
+            // User selection
+            document.querySelectorAll('.user-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    const selectedUser = this.dataset.user;
+                    switchUser(selectedUser);
+                    closeUserDropdown();
+                });
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!userDropdownButton.contains(event.target) && !userDropdownMenu.contains(event.target)) {
+                    closeUserDropdown();
+                }
+            });
+            
+            // Filters
+            filterPriority.addEventListener('change', function() {
+                currentPriorityFilter = this.value;
+                renderTodos();
+            });
+            
+            filterProject.addEventListener('change', function() {
+                currentProjectFilter = this.value;
+                renderTodos();
+            });
+            
+            showCompletedBtn.addEventListener('click', function() {
+                showCompleted = !showCompleted;
+                this.textContent = showCompleted ? 'Hide Completed' : 'Show Completed';
+                this.innerHTML = showCompleted ? 
+                    '<i class="fas fa-eye-slash mr-2"></i> Hide Completed' : 
+                    '<i class="fas fa-check-circle mr-2"></i> Show Completed';
+                renderTodos();
+            });
+            
+            // Manage projects button
+            manageProjectsBtn.addEventListener('click', openModal);
+        }
+        
+        // Toggle user dropdown
+        function toggleUserDropdown() {
+            if (userDropdownMenu.classList.contains('hidden')) {
+                userDropdownMenu.classList.remove('hidden');
+            } else {
+                userDropdownMenu.classList.add('hidden');
+            }
+        }
+        
+        // Close user dropdown
+        function closeUserDropdown() {
+            userDropdownMenu.classList.add('hidden');
+        }
+        
+        // Switch current user
+        function switchUser(userId) {
+            currentUser = userId;
+            
+            // Update UI
+            currentUserName.textContent = users[userId].name;
+            currentUserAvatar.className = `user-avatar ${users[userId].color} mr-3`;
+            currentUserAvatar.textContent = users[userId].initial;
+            
+            // Update active user display
+            activeUserDisplay.innerHTML = `Assigned to <span class="font-semibold">${users[userId].name}</span>`;
+            
+            // Update dropdown checkmarks
+            document.querySelectorAll('.user-option').forEach(option => {
+                const checkIcon = option.querySelector('.fa-check');
+                if (option.dataset.user === userId) {
+                    checkIcon.classList.remove('hidden');
+                } else {
+                    checkIcon.classList.add('hidden');
+                }
+            });
+            
+            // Set assign to field in modal to current user
+            modalAssignTo.value = userId;
+            
+            // Re-render todos for the new user
+            renderTodos();
+            updateStats();
+            updateUserTaskStats();
+        }
+        
+        // Update user task stats
+        function updateUserTaskStats() {
+            const userTasks = todos[currentUser] || [];
+            const pending = userTasks.filter(task => !task.completed).length;
+            const completed = userTasks.filter(task => task.completed).length;
+            
+            userTaskStats.innerHTML = `${users[currentUser].name} has <span class="font-bold">${pending}</span> pending tasks and <span class="font-bold">${completed}</span> completed tasks`;
+            
+            // Update user dropdown stats
+            Object.keys(users).forEach(userId => {
+                const userTasks = todos[userId] || [];
+                const pending = userTasks.filter(task => !task.completed).length;
+                const option = document.querySelector(`.user-option[data-user="${userId}"]`);
+                const statsText = option.querySelector('.text-xs');
+                statsText.textContent = `${pending} pending tasks`;
+            });
+        }
+        
+        // Open modal
+        function openModal() {
+            taskModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+            modalTaskTitle.focus();
+            
+            // Reset form
+            modalTaskTitle.value = '';
+            modalTaskDescription.value = '';
+            titleError.classList.add('hidden');
+            
+            // Set default assign to current user
+            modalAssignTo.value = currentUser;
+            
+            // Set default date to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const formattedDate = tomorrow.toISOString().split('T')[0];
+            modalDueDate.value = formattedDate;
+            
+            // Clear time
+            modalDueTime.value = '';
+            
+            // Clear project input
+            modalProjectInput.value = '';
+        }
+        
+        // Close modal
+        function closeModal() {
+            taskModal.classList.add('hidden');
+            document.body.style.overflow = 'auto'; // Restore scrolling
+        }
+        
+        // Update project suggestions
+        function updateProjectSuggestions() {
+            projectSuggestions.innerHTML = '';
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project;
+                projectSuggestions.appendChild(option);
+            });
+        }
+        
+        // Render existing project tags
+        function renderExistingProjectTags() {
+            existingProjectsDiv.innerHTML = '';
+            projects.slice(0, 5).forEach(project => { // Show only first 5 projects
+                const tag = document.createElement('button');
+                tag.type = 'button';
+                tag.className = 'project-tag bg-blue-50 text-blue-700 hover:bg-blue-100 transition duration-150';
+                tag.textContent = project;
+                tag.addEventListener('click', function() {
+                    modalProjectInput.value = project;
+                });
+                existingProjectsDiv.appendChild(tag);
+            });
+            
+            if (projects.length > 5) {
+                const moreTag = document.createElement('span');
+                moreTag.className = 'project-tag bg-gray-100 text-gray-600';
+                moreTag.textContent = `+${projects.length - 5} more`;
+                existingProjectsDiv.appendChild(moreTag);
+            }
+        }
+        
+        // Render projects list
+        function renderProjectsList() {
+            projectsList.innerHTML = '';
+            
+            // Count tasks per project for current user
+            const projectTaskCounts = {};
+            const userTasks = todos[currentUser] || [];
+            
+            userTasks.forEach(task => {
+                if (task.project) {
+                    if (!projectTaskCounts[task.project]) {
+                        projectTaskCounts[task.project] = { total: 0, completed: 0 };
+                    }
+                    projectTaskCounts[task.project].total++;
+                    if (task.completed) {
+                        projectTaskCounts[task.project].completed++;
+                    }
+                }
+            });
+            
+            // Display projects
+            projects.forEach(project => {
+                const counts = projectTaskCounts[project] || { total: 0, completed: 0 };
+                const completion = counts.total > 0 ? Math.round((counts.completed / counts.total) * 100) : 0;
+                
+                const projectElement = document.createElement('div');
+                projectElement.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-150';
+                
+                projectElement.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center mr-3">
+                            <i class="fas fa-folder text-blue-600"></i>
+                        </div>
+                        <div>
+                            <div class="font-medium text-gray-800">${project}</div>
+                            <div class="text-xs text-gray-500">${counts.total} tasks</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-gray-800">${completion}%</div>
+                        <div class="text-xs text-gray-500">complete</div>
+                    </div>
+                `;
+                
+                projectsList.appendChild(projectElement);
+            });
+            
+            projectCount.textContent = `${projects.length} projects`;
+        }
+        
+        // Update project filter dropdown
+        function updateProjectFilter() {
+            filterProject.innerHTML = '<option value="all">All Projects</option>';
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project;
+                option.textContent = project;
+                filterProject.appendChild(option);
+            });
+        }
+        
+        // Get color for priority
+        function getPriorityColor(priority) {
+            const colors = {
+                high: '#ef4444',
+                medium: '#f59e0b',
+                low: '#10b981'
+            };
+            return colors[priority] || colors.medium;
+        }
+        
+        // Get icon for priority
+        function getPriorityIcon(priority) {
+            const icons = {
+                high: 'fas fa-exclamation-circle',
+                medium: 'fas fa-chevron-circle-up',
+                low: 'fas fa-chevron-circle-down'
+            };
+            return icons[priority] || icons.medium;
+        }
+        
+        // Show Toast Notification
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            // Icon based on type
+            let icon = 'info-circle';
+            if (type === 'success') icon = 'check-circle';
+            if (type === 'error') icon = 'exclamation-circle';
+            
+            toast.innerHTML = `
+                <i class="fas fa-${icon} text-xl mt-1 ${type === 'success' ? 'text-green-500' : type === 'error' ? 'text-red-500' : 'text-blue-500'}"></i>
+                <div class="toast-content">
+                    <div class="toast-title toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                toast.addEventListener('transitionend', () => toast.remove());
+            }, 3000);
+        }
+
+        // Add task from modal
+        async function addTaskFromModal() {
+            const title = modalTaskTitle.value.trim();
+            if (!title) {
+                titleError.classList.remove('hidden');
+                modalTaskTitle.focus();
+                return;
+            }
+            
+            titleError.classList.add('hidden');
+            
+            // Get assigned user
+            const assignedTo = modalAssignTo.value;
+            
+            // Get project
+            let project = modalProjectInput.value.trim();
+            if (!project) {
+                project = "General";
+            }
+            
+            // Create due date with time
+            let dueDate = null;
+            if (modalDueDate.value) {
+                dueDate = modalDueDate.value; // Send string YYYY-MM-DD
+            }
+            
+            const newTask = {
+                title: title,
+                description: modalTaskDescription.value.trim(),
+                priority: modalPriority.value,
+                project: project,
+                assignedTo: assignedTo,
+                dueDate: dueDate,
+                dueTime: modalDueTime.value || ''
+            };
+            
+            try {
+                const response = await fetch('/api/todos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newTask)
+                });
+                
+                if (!response.ok) throw new Error('Failed to create todo');
+                
+                // Refresh data
+                await fetchTodos();
+                
+                showToast('Success', 'Task added successfully', 'success');
+                closeModal();
+                
+            } catch (error) {
+                console.error('Error adding task:', error);
+                showToast('Error', 'Failed to add task', 'error');
+            }
+        }
+        
+        // Toggle task completion
+        async function toggleTaskCompletion(id) {
+            try {
+                const response = await fetch(`/api/todos/${id}/toggle`, {
+                    method: 'PATCH'
+                });
+                
+                if (!response.ok) throw new Error('Failed to update task');
+                
+                await fetchTodos();
+                // showToast('Updated', 'Task status updated', 'success'); // Optional, maybe too noisy
+                
+            } catch (error) {
+                console.error('Error updating task:', error);
+                showToast('Error', 'Failed to update task status', 'error');
+            }
+        }
+        
+        // Delete task
+        async function deleteTask(id) {
+            
+            try {
+                const response = await fetch(`/api/todos/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Failed to delete task');
+                
+                await fetchTodos();
+                showToast('Deleted', 'Task deleted successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error deleting task:', error);
+                showToast('Error', 'Failed to delete task', 'error');
+            }
+        }
+        
+        // Format date and time
+        function formatDateTime(dateString, timeString) {
+            if (!dateString) return 'No due date';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            let dateText = '';
+            if (diffDays === 0) dateText = 'Today';
+            else if (diffDays === 1) dateText = 'Tomorrow';
+            else if (diffDays < 7) dateText = `${diffDays} days`;
+            else dateText = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            if (timeString) {
+                // Format time to 12-hour format
+                const [hours, minutes] = timeString.split(':');
+                const hour = parseInt(hours);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const hour12 = hour % 12 || 12;
+                const formattedTime = `${hour12}:${minutes} ${ampm}`;
+                
+                return `${dateText} at ${formattedTime}`;
+            }
+            
+            return dateText;
+        }
+        
+        // Format date for display
+        function formatDateDisplay(dateString) {
+            if (!dateString) return '';
+            
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+        
+        // Render todos based on filters
+        function renderTodos() {
+            const userTasks = todos[currentUser] || [];
+            
+            // Filter tasks based on current filters
+            let filteredTasks = userTasks.filter(task => {
+                // Filter by completion status
+                if (!showCompleted && task.completed) return false;
+                
+                // Filter by priority
+                if (currentPriorityFilter !== 'all' && task.priority !== currentPriorityFilter) return false;
+                
+                // Filter by project
+                if (currentProjectFilter !== 'all' && task.project !== currentProjectFilter) return false;
+                
+                return true;
+            });
+            
+            // Clear container
+            tasksContainer.innerHTML = '';
+            
+            // Show empty state if no tasks
+            if (filteredTasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+            
+            // Render each task
+            filteredTasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = `todo-item bg-white border-l-4 priority-${task.priority} rounded-xl border shadow-sm hover:shadow-md transition duration-200 fade-in`;
+                taskElement.style.borderLeftColor = getPriorityColor(task.priority);
+                
+                const isCompleted = task.completed ? 'line-through text-gray-500' : '';
+                const dueDateTimeText = task.dueDate ? formatDateTime(task.dueDate, task.dueTime) : '';
+                const dueDateDisplay = task.dueDate ? formatDateDisplay(task.dueDate) : '';
+                
+                // Determine if task is overdue
+                let dueDateClass = 'text-gray-500';
+                let overdueIcon = '';
+                if (task.dueDate && !task.completed) {
+                    const now = new Date();
+                    const due = new Date(task.dueDate);
+                    if (due < now) {
+                        dueDateClass = 'text-red-500 font-semibold';
+                        overdueIcon = '<i class="fas fa-exclamation-triangle text-red-500 mr-1"></i>';
+                    } else if (due.toDateString() === now.toDateString()) {
+                        dueDateClass = 'text-orange-500 font-semibold';
+                        overdueIcon = '<i class="fas fa-clock text-orange-500 mr-1"></i>';
+                    }
+                }
+                
+                taskElement.innerHTML = `
+                    <div class="p-5">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5 mt-1 mr-4">
+                                <div class="checkbox-custom relative h-5 w-5 rounded border border-gray-300 cursor-pointer ${task.completed ? 'checkbox-custom:checked' : ''}" data-id="${task.id}"></div>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="flex items-center">
+                                            <h4 class="font-semibold text-gray-900 ${isCompleted}">${task.title}</h4>
+                                            <span class="project-tag bg-blue-50 text-blue-700 ml-3">${task.project}</span>
+                                        </div>
+                                        ${task.description ? `<p class="text-gray-600 mt-2 ${isCompleted}">${task.description}</p>` : ''}
+                                    </div>
+                                    <div class="todo-actions opacity-0 transition-opacity duration-200 flex space-x-2 ml-4">
+                                        <button class="text-gray-400 hover:text-blue-600 p-1 rounded-full hover:bg-blue-50" data-id="${task.id}" data-action="delete">
+                                            <i class="fas fa-trash-alt text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex flex-wrap items-center mt-4">
+                                    <div class="flex items-center mr-4 mb-2">
+                                        <i class="${getPriorityIcon(task.priority)} mr-2" style="color: ${getPriorityColor(task.priority)}"></i>
+                                        <span class="text-sm font-medium capitalize">${task.priority} Priority</span>
+                                    </div>
+                                    ${dueDateTimeText ? `
+                                    <div class="flex items-center mr-4 mb-2 ${dueDateClass}">
+                                        ${overdueIcon}
+                                        <i class="far fa-calendar-alt mr-2"></i>
+                                        <span class="text-sm" title="${dueDateDisplay} ${task.dueTime ? 'at ' + task.dueTime : ''}">${dueDateTimeText}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                tasksContainer.appendChild(taskElement);
+                
+                // Add event listeners to the new task element
+                const checkbox = taskElement.querySelector('.checkbox-custom');
+                checkbox.addEventListener('click', () => toggleTaskCompletion(task.id));
+                
+                if (task.completed) {
+                    checkbox.style.backgroundColor = '#3b82f6';
+                    checkbox.style.borderColor = '#3b82f6';
+                }
+                
+                const deleteBtn = taskElement.querySelector('[data-action="delete"]');
+                deleteBtn.addEventListener('click', () => deleteTask(task.id));
+            });
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const userTasks = todos[currentUser] || [];
+            const pending = userTasks.filter(task => !task.completed).length;
+            const completed = userTasks.filter(task => task.completed).length;
+            const total = userTasks.length;
+            
+            // Update completion percentage
+            const completionPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            document.getElementById('completion-percent').textContent = `${completionPercentage}%`;
+            document.getElementById('completion-bar').style.width = `${completionPercentage}%`;
+            
+            // Update task counts
+            document.getElementById('total-tasks').textContent = total;
+            document.getElementById('completed-tasks').textContent = completed;
+            document.getElementById('active-projects').textContent = projects.length;
+            
+            // Update priority counts
+            const highCount = userTasks.filter(task => task.priority === 'high').length;
+            const mediumCount = userTasks.filter(task => task.priority === 'medium').length;
+            const lowCount = userTasks.filter(task => task.priority === 'low').length;
+            
+            document.getElementById('high-count').textContent = highCount;
+            document.getElementById('medium-count').textContent = mediumCount;
+            document.getElementById('low-count').textContent = lowCount;
+            
+            // Update priority bars
+            const maxCount = Math.max(highCount, mediumCount, lowCount, 1);
+            document.getElementById('high-priority-bar').style.width = `${(highCount / maxCount) * 100}%`;
+            document.getElementById('medium-priority-bar').style.width = `${(mediumCount / maxCount) * 100}%`;
+            document.getElementById('low-priority-bar').style.width = `${(lowCount / maxCount) * 100}%`;
+        }
+    </script>
+</body>
+</html>
