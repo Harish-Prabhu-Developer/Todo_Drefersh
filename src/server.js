@@ -154,6 +154,31 @@ app.get('/health', (req, res) => {
     res.json({ message: 'OK', timestamp: new Date().toISOString(), db: 'connected' });
 });
 
+// debug env (Diagnostic only - DELETE LATER)
+app.get('/api/debug-env', async (req, res) => {
+    const fs = await import('fs');
+    const rootPath = path.join(__dirname, '../');
+    let files = [];
+    try {
+        files = fs.readdirSync(rootPath).filter(f => !f.startsWith('node_modules'));
+    } catch (e) {
+        files = ['Error reading root: ' + e.message];
+    }
+
+    res.json({
+        cwd: process.cwd(),
+        dirname: __dirname,
+        rootPath: rootPath,
+        filesFound: files,
+        envVars: {
+            DB_HOST: process.env.DB_HOST ? 'SET (value starts with ' + process.env.DB_HOST.substring(0, 3) + ')' : 'MISSING',
+            DB_USER: process.env.DB_USER ? 'SET' : 'MISSING',
+            DB_NAME: process.env.DB_NAME ? 'SET' : 'MISSING',
+            PORT: process.env.PORT
+        }
+    });
+});
+
 // Serve index.html for root route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../index.html'));
