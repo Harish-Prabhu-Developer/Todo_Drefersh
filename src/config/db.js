@@ -1,10 +1,21 @@
 import dotenv from 'dotenv';
 import mysql from 'mysql2';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Explicitly load .env from the project root (one level up from src/config)
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
+// Debugging: Check if environment variables are loaded
+if (!process.env.DB_USER) {
+    console.error('CRITICAL: DB_USER is not defined. Check your .env file at:', path.join(__dirname, '../../.env'));
+}
 
 const pool = mysql.createPool({
-    host: process.env.DB_HOST,
+    host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
