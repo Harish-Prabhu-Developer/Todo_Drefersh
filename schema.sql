@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS tbl_todo_users (
 INSERT IGNORE INTO tbl_todo_users (id, name, color, initial) VALUES
 ('harish', 'Harish', 'user-harish', 'H'),
 ('solai', 'Solai', 'user-solai', 'S'),
-('anwar', 'Anwar', 'user-anwar', 'A');
+('anwar', 'Anwar', 'user-anwar', 'A'),
+('vijay', 'Vijay', 'user-vijay', 'G');
 
 CREATE TABLE IF NOT EXISTS tbl_todos (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

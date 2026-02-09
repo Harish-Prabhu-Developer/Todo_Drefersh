@@ -59,9 +59,7 @@
             font-weight: bold;
             color: white;
         }
-        .user-harish { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .user-solai { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .user-anwar { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        /* User Gradient classes removed - now handled dynamically */
         .user-selected {
             outline: 3px solid #3b82f6;
             outline-offset: 2px;
@@ -149,7 +147,7 @@
                         <div>
                             <button type="button" id="user-dropdown-button" class="inline-flex justify-between items-center w-64 px-4 py-3 bg-white border border-gray-300 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                 <div class="flex items-center">
-                                    <div id="current-user-avatar" class="user-avatar user-harish mr-3">H</div>
+                                    <div id="current-user-avatar" class="user-avatar mr-3">H</div>
                                     <div>
                                         <div class="text-left">
                                             <span id="current-user-name" class="font-semibold">Harish</span>
@@ -165,32 +163,7 @@
                             <div class="py-2 px-3" role="menu" aria-orientation="vertical">
                                 <div class="py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Team Member</div>
                                 
-                                <button class="user-option w-full flex items-center px-3 py-3 rounded-lg hover:bg-gray-100 mb-1 transition duration-150" data-user="harish">
-                                    <div class="user-avatar user-harish mr-3">H</div>
-                                    <div class="text-left">
-                                        <div class="font-medium">Harish</div>
-                                        <div class="text-xs text-gray-500">5 pending tasks</div>
-                                    </div>
-                                    <i class="fas fa-check ml-auto text-blue-600 hidden"></i>
-                                </button>
-                                
-                                <button class="user-option w-full flex items-center px-3 py-3 rounded-lg hover:bg-gray-100 mb-1 transition duration-150" data-user="solai">
-                                    <div class="user-avatar user-solai mr-3">S</div>
-                                    <div class="text-left">
-                                        <div class="font-medium">Solai</div>
-                                        <div class="text-xs text-gray-500">3 pending tasks</div>
-                                    </div>
-                                    <i class="fas fa-check ml-auto text-blue-600 hidden"></i>
-                                </button>
-                                
-                                <button class="user-option w-full flex items-center px-3 py-3 rounded-lg hover:bg-gray-100 transition duration-150" data-user="anwar">
-                                    <div class="user-avatar user-anwar mr-3">A</div>
-                                    <div class="text-left">
-                                        <div class="font-medium">Anwar</div>
-                                        <div class="text-xs text-gray-500">7 pending tasks</div>
-                                    </div>
-                                    <i class="fas fa-check ml-auto text-blue-600 hidden"></i>
-                                </button>
+                                <!-- Dynamically populated by renderUserOptions() -->
                             </div>
                         </div>
                     </div>
@@ -402,9 +375,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Assign To</label>
                                 <div class="relative">
                                     <select id="modal-assign-to" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200 appearance-none bg-white">
-                                        <option value="harish">Harish</option>
-                                        <option value="solai">Solai</option>
-                                        <option value="anwar">Anwar</option>
+                                        <!-- Dynamically populated by renderUserOptions() -->
                                     </select>
                                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                                         <i class="fas fa-chevron-down"></i>
@@ -474,11 +445,101 @@
     
     <script>
         // Initial data
-        const users = {
-            harish: { name: "Harish", color: "user-harish", initial: "H" },
-            solai: { name: "Solai", color: "user-solai", initial: "S" },
-            anwar: { name: "Anwar", color: "user-anwar", initial: "A" }
-        };
+        let users = {};
+
+        // Fetch users from server
+        async function fetchUsers() {
+            try {
+                const response = await fetch('/api/users');
+                if (!response.ok) throw new Error('Failed to fetch users');
+                
+                users = await response.json();
+                
+                // Once users are loaded, render user options in UI
+                renderUserOptions();
+                
+                // If current user is not in the list (or list is empty), adjust
+                const userIds = Object.keys(users);
+                if (userIds.length > 0) {
+                    if (!userIds.includes(currentUser)) {
+                        currentUser = userIds[0];
+                    }
+                    switchUser(currentUser);
+                    fetchTodos();
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                // Fallback to static data if API fails
+                users = {
+                    harish: { name: "Harish", color: "user-harish", initial: "H" },
+                    solai: { name: "Solai", color: "user-solai", initial: "S" },
+                    anwar: { name: "Anwar", color: "user-anwar", initial: "A" },
+                    vijay: { name: "Vijay", color: "user-vijay", initial: "G" },
+                };
+                renderUserOptions();
+                switchUser(currentUser);
+                fetchTodos();
+            }
+        }
+
+        // Get dynamic gradient for user
+        function getUserGradient(userId) {
+            const presets = {
+                'harish': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'solai': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'anwar': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'vijay': 'linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)'
+            };
+
+            if (presets[userId]) return presets[userId];
+
+            // Generate consistent gradient from userId
+            let hash = 0;
+            for (let i = 0; i < userId.length; i++) {
+                hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = Math.abs(hash % 360);
+            return `linear-gradient(135deg, hsl(${h}, 70%, 65%) 0%, hsl(${(h + 40) % 360}, 75%, 45%) 100%)`;
+        }
+
+        // Render user options in dropdown and modal
+        function renderUserOptions() {
+            // Update User Selection Dropdown
+            const menuContainer = userDropdownMenu.querySelector('.py-2.px-3');
+            // Keep the header
+            menuContainer.innerHTML = '<div class="py-2 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Team Member</div>';
+            
+            // Update Modal Assign To dropdown
+            modalAssignTo.innerHTML = '';
+
+            Object.keys(users).forEach(userId => {
+                const user = users[userId];
+                
+                // Add to dropdown menu
+                const button = document.createElement('button');
+                button.className = 'user-option w-full flex items-center px-3 py-3 rounded-lg hover:bg-gray-100 mb-1 transition duration-150';
+                button.dataset.user = userId;
+                button.innerHTML = `
+                    <div class="user-avatar mr-3" style="background: ${getUserGradient(userId)}">${user.initial}</div>
+                    <div class="text-left">
+                        <div class="font-medium">${user.name}</div>
+                        <div class="text-xs text-gray-500">0 pending tasks</div>
+                    </div>
+                    <i class="fas fa-check ml-auto text-blue-600 ${userId === currentUser ? '' : 'hidden'}"></i>
+                `;
+                button.addEventListener('click', function() {
+                    switchUser(userId);
+                    closeUserDropdown();
+                });
+                menuContainer.appendChild(button);
+                
+                // Add to modal select
+                const option = document.createElement('option');
+                option.value = userId;
+                option.textContent = user.name;
+                modalAssignTo.appendChild(option);
+            });
+        }
 
         // Initial todo data - organized by user
         let todos = {};
@@ -592,8 +653,9 @@
             modalDueDate.value = formattedDate;
             
             initializeEventListeners();
-            switchUser(currentUser);
-            fetchTodos();
+            
+            // Fetch users first, which will then trigger fetchTodos
+            fetchUsers();
         });
         
         // Set up event listeners
@@ -629,14 +691,7 @@
             // User dropdown
             userDropdownButton.addEventListener('click', toggleUserDropdown);
             
-            // User selection
-            document.querySelectorAll('.user-option').forEach(option => {
-                option.addEventListener('click', function() {
-                    const selectedUser = this.dataset.user;
-                    switchUser(selectedUser);
-                    closeUserDropdown();
-                });
-            });
+            // User selection handled dynamically in renderUserOptions
             
             // Close dropdown when clicking outside
             document.addEventListener('click', function(event) {
@@ -689,7 +744,7 @@
             
             // Update UI
             currentUserName.textContent = users[userId].name;
-            currentUserAvatar.className = `user-avatar ${users[userId].color} mr-3`;
+            currentUserAvatar.style.background = getUserGradient(userId);
             currentUserAvatar.textContent = users[userId].initial;
             
             // Update active user display
@@ -727,8 +782,10 @@
                 const userTasks = todos[userId] || [];
                 const pending = userTasks.filter(task => !task.completed).length;
                 const option = document.querySelector(`.user-option[data-user="${userId}"]`);
-                const statsText = option.querySelector('.text-xs');
-                statsText.textContent = `${pending} pending tasks`;
+                if (option) {
+                    const statsText = option.querySelector('.text-xs');
+                    if (statsText) statsText.textContent = `${pending} pending tasks`;
+                }
             });
         }
         

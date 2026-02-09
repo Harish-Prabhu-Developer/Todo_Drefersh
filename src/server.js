@@ -124,6 +124,30 @@ app.delete('/api/todos/:id', (req, res) => {
     });
 });
 
+// Get all users
+app.get('/api/users', (req, res) => {
+    const query = 'SELECT * FROM tbl_todo_users';
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching users:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+            return;
+        }
+
+        const users = {};
+        results.forEach(row => {
+            users[row.id] = {
+                id: row.id,
+                name: row.name,
+                color: row.color,
+                initial: row.initial
+            };
+        });
+
+        res.json(users);
+    });
+});
+
 
 // Serve index.html for root route
 app.get('/', (req, res) => {
