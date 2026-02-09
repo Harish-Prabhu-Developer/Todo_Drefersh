@@ -68,7 +68,7 @@ app.post('/api/todos', (req, res) => {
     db.query(query, [title, description, priority, project, valAssign, valDate, dueTime], (err, result) => {
         if (err) {
             console.error('Error creating todo:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
+            res.status(500).json({ msg: 'Internal Server Error', error: err.message });
             return;
         }
         const insertId = result.insertId;
@@ -76,7 +76,7 @@ app.post('/api/todos', (req, res) => {
         // Fetch the created todo to return it
         db.query('SELECT * FROM tbl_todos WHERE id = ?', [insertId], (err, rows) => {
             if (err) {
-                res.status(500).json({ error: 'Error fetching created todo' });
+                res.status(500).json({ msg: 'Internal Server Error', error: err.message });
                 return;
             }
             const row = rows[0];
@@ -106,7 +106,7 @@ app.patch('/api/todos/:id/toggle', (req, res) => {
     db.query(query, [id], (err, result) => {
         if (err) {
             console.error('Error updating todo:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
+            res.status(500).json({ msg: 'Internal Server Error', error: err.message });
             return;
         }
         res.json({ message: 'Todo updated successfully' });
@@ -121,7 +121,7 @@ app.delete('/api/todos/:id', (req, res) => {
     db.query(query, [id], (err, result) => {
         if (err) {
             console.error('Error deleting todo:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
+            res.status(500).json({ msg: 'Internal Server Error', error: err.message });
             return;
         }
         res.json({ message: 'Todo deleted successfully' });
@@ -134,7 +134,7 @@ app.get('/api/users', (req, res) => {
     db.query(query, (err, results) => {
         if (err) {
             console.error('Error fetching users:', err);
-            res.status(500).json({ error: 'Internal Server Error' });
+            res.status(500).json({ msg: 'Internal Server Error', error: err.message });
             return;
         }
 
@@ -152,6 +152,10 @@ app.get('/api/users', (req, res) => {
     });
 });
 
+// health check
+app.get('/health', (req, res) => {
+    res.json({ message: 'OK', timestamp: new Date().toISOString(), db: 'connected' });
+});
 
 // Serve index.html for root route
 app.get('/', (req, res) => {
