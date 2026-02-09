@@ -2,29 +2,50 @@ import dotenv from 'dotenv';
 import mysql from 'mysql2';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Explicitly load .env from the project root (one level up from src/config)
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Potential .env paths
+const paths = [
+    path.join(__dirname, '../../.env'), // From src/config/
+    path.join(process.cwd(), '.env'),    // From current working directory
+    path.join(process.cwd(), '../.env'), // One level up from CWD
+];
 
-// Debugging: Check if environment variables are loaded
+let envFound = false;
+for (const envPath of paths) {
+    if (fs.existsSync(envPath)) {
+        console.log('--- DB CONFIG: Loading .env from:', envPath);
+        dotenv.config({ path: envPath });
+        envFound = true;
+        break;
+    }
+}
+
+if (!envFound) {
+    console.warn('--- DB CONFIG WARNING: No .env file found in any searched locations:', paths);
+}
+
+// Diagnostic check (avoid logging actual password)
 if (!process.env.DB_USER) {
-    console.error('CRITICAL: DB_USER is not defined. Check your .env file at:', path.join(__dirname, '../../.env'));
+    console.error('--- DB CONFIG ERROR: DB_USER is still undefined after config attempt.');
+} else {
+    console.log('--- DB CONFIG: DB_USER detected as:', process.env.DB_USER.substring(0, 3) + '...');
 }
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    user: process.env.DB_USER || '',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || '',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
-    multipleStatements: true // useful for running the schema script if needed
+    multipleStatements: true
 });
 
 // Test the connection

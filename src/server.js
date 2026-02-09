@@ -1,12 +1,9 @@
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Static folder resolution
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Load .env from the project root
-dotenv.config({ path: path.join(__dirname, '../.env') });
 
 import express from 'express';
 import bodyParser from 'body-parser';
